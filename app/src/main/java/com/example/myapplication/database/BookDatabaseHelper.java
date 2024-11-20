@@ -28,7 +28,8 @@ public class BookDatabaseHelper extends SQLiteOpenHelper {
     private static final String COLUMN_REVIEW_DATE = "review_date";  // 감상평 작성 날짜
     private static final String COLUMN_REVIEW = "review";  // 감상평 내용
     private static final String COLUMN_TAGS = "tags";  // 추가 태그
-
+    private static final String COLUMN_IMAGE_PATH = "image_path";  // 이미지 경로
+    
     // 생성자
     public BookDatabaseHelper(Context context) {
         super(context, DATABASE_NAME, null, DATABASE_VERSION);
@@ -49,6 +50,7 @@ public class BookDatabaseHelper extends SQLiteOpenHelper {
                 COLUMN_REVIEW_DATE + " TEXT, " +
                 COLUMN_REVIEW + " TEXT, " +
                 COLUMN_TAGS + " TEXT)";
+                COLUMN_IMAGE_PATH + " TEXT)";
         db.execSQL(CREATE_TABLE);  // SQL 문 실행
     }
 
@@ -72,6 +74,7 @@ public class BookDatabaseHelper extends SQLiteOpenHelper {
      * @param reviewDate 감상평 작성 날짜
      * @param review 감상평 내용
      * @param tags 추가 태그
+     * @param imagePath 이미지 경로
      * @return 새로 삽입된 행의 ID, 오류 발생 시 -1 반환
      */
     public long insertBookReview(String title, String author, String publisher, String translator,
@@ -87,6 +90,7 @@ public class BookDatabaseHelper extends SQLiteOpenHelper {
         values.put(COLUMN_REVIEW_DATE, reviewDate);
         values.put(COLUMN_REVIEW, review);
         values.put(COLUMN_TAGS, tags);
+        values.put(COLUMN_IMAGE_PATH, imagePath);
         return db.insert(TABLE_NAME, null, values);  // 데이터 삽입 후 새 행의 ID 반환
     }
 
