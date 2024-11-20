@@ -1,0 +1,149 @@
+import android.database.Cursor;
+import android.os.Bundle;
+import android.view.View;
+import android.widget.AdapterView;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.ListView;
+import android.widget.SimpleCursorAdapter;
+import android.widget.Toast;
+import androidx.appcompat.app.AppCompatActivity;
+
+public class MainActivity extends AppCompatActivity {
+
+    private BookDatabaseHelper dbHelper;
+    private EditText editTextTitle, editTextAuthor;
+    private ListView listViewBooks;
+    private long selectedItemId = -1; // 선택된 항목의 ID를 저장하기 위한 변수
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        dbHelper = new BookDatabaseHelper(this);
+
+        editTextTitle = findViewById(R.id.editTextTitle);
+        editTextAuthor = findViewById(R.id.editTextAuthor);
+        listViewBooks = findViewById(R.id.listViewBooks);
+        Button buttonSave = findViewById(R.id.buttonSave);
+        Button buttonUpdate = findViewById(R.id.buttonUpdate);
+        Button buttonDelete = findViewById(R.id.buttonDelete);
+
+        // 데이터 삽입
+        buttonSave.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                String title = editTextTitle.getText().toString().trim();
+                String author = editTextAuthor.getText().toString().trim();
+
+                if (!title.isEmpty() && !author.isEmpty()) {
+                    long id = dbHelper.insertBookReview(
+                            title,
+                            author,
+                            "출판사 예시",
+                            "옮긴이 예시",
+                            5,
+                            "장르 예시",
+                            "2024-11-18",
+                            "리뷰 예시",
+                            "태그 예시"
+                    );
+
+                    if (id != -1) {
+                        Toast.makeText(MainActivity.this, "저장 성공", Toast.LENGTH_SHORT).show();
+                        loadBookReviews();
+                    } else {
+                        Toast.makeText(MainActivity.this, "저장 실패", Toast.LENGTH_SHORT).show();
+                    }
+                } else {
+                    Toast.makeText(MainActivity.this, "모든 필드를 입력해주세요", Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
+
+        // 데이터 수정
+        buttonUpdate.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (selectedItemId != -1) {
+                    String title = editTextTitle.getText().toString().trim();
+                    String author = editTextAuthor.getText().toString().trim();
+
+                    if (!title.isEmpty() && !author.isEmpty()) {
+                        int rowsAffected = dbHelper.updateBookReview(
+                                selectedItemId,
+                                title,
+                                author,
+                                "출판사 예시 (수정)",
+                                "옮긴이 예시 (수정)",
+                                4,
+                                "장르 예시 (수정)",
+                                "2024-11-18",
+                                "리뷰 수정 예시",
+                                "태그 수정 예시"
+                        );
+
+                        if (rowsAffected > 0) {
+                            Toast.makeText(MainActivity.this, "수정 성공", Toast.LENGTH_SHORT).show();
+                            loadBookReviews();
+                        } else {
+                            Toast.makeText(MainActivity.this, "수정 실패", Toast.LENGTH_SHORT).show();
+                        }
+                    } else {
+                        Toast.makeText(MainActivity.this, "모든 필드를 입력해주세요", Toast.LENGTH_SHORT).show();
+                    }
+                } else {
+                    Toast.makeText(MainActivity.this, "수정할 항목을 선택해주세요", Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
+
+        // 데이터 삭제
+        buttonDelete.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (selectedItemId != -1) {
+                    int rowsDeleted = dbHelper.deleteBookReview(selectedItemId);
+                    if (rowsDeleted > 0) {
+                        Toast.makeText(MainActivity.this, "삭제 성공", Toast.LENGTH_SHORT).show();
+                        loadBookReviews();
+                    } else {
+                        Toast.makeText(MainActivity.this, "삭제 실패", Toast.LENGTH_SHORT).show();
+                    }
+                } else {
+                    Toast.makeText(MainActivity.this, "삭제할 항목을 선택해주세요", Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
+
+        // 목록 항목 선택 시 ID 저장 및 필드 채우기
+        listViewBooks.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                selectedItemId = id; // 선택된 항목의 ID 저장
+                Cursor cursor = dbHelper.getBookReviewById(id);
+                if (cursor != null && cursor.moveToFirst()) {
+                    editTextTitle.setText(cursor.getString(cursor.getColumnIndex("title")));
+                    editTextAuthor.setText(cursor.getString(cursor.getColumnIndex("author")));
+                    // 다른 필드도 필요 시 채울 수 있습니다.
+                    cursor.close();
+                }
+            }
+        });
+
+        // 초기 데이터 로드
+        loadBookReviews();
+    }
+
+    // 데이터베이스에서 책 감상평을 불러와 ListView에 표시
+    private void loadBookReviews() {
+        Cursor cursor = dbHelper.getAllBookReviews();
+        String[] from = new String[]{"title", "author"};
+        int[] to = new int[]{android.R.id.text1, android.R.id.text2};
+        SimpleCursorAdapter adapter = new SimpleCursorAdapter(
+                this, android.R.layout.simple_list_item_2, cursor, from, to, 0
+        );
+        listViewBooks.setAdapter(adapter);
+    }
+}
