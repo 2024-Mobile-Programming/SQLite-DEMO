@@ -1,43 +1,73 @@
+import android.content.Intent;
 import android.database.Cursor;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.net.Uri;
 import android.os.Bundle;
+import android.provider.MediaStore;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.SimpleCursorAdapter;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 
+/**
+ * 메인 액티비티: 사용자 입력을 처리하고 데이터베이스와 상호작용하며
+ * 책 감상평 목록을 보여줍니다.
+ */
 public class MainActivity extends AppCompatActivity {
 
-    private BookDatabaseHelper dbHelper;
-    private EditText editTextTitle, editTextAuthor;
-    private ListView listViewBooks;
-    private long selectedItemId = -1; // 선택된 항목의 ID를 저장하기 위한 변수
+    private static final int PICK_IMAGE_REQUEST = 1; // 이미지 선택 요청 코드
+    private BookDatabaseHelper dbHelper; // 데이터베이스 헬퍼 객체
+    private EditText editTextTitle, editTextAuthor; // 사용자 입력 필드
+    private ListView listViewBooks; // 책 감상평 목록을 표시하는 ListView
+    private long selectedItemId = -1; // 선택된 항목 ID 저장
+    private String selectedImagePath = ""; // 선택된 이미지 경로
+    private ImageView imageView; // 이미지 미리보기
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        // 데이터베이스 헬퍼 초기화
         dbHelper = new BookDatabaseHelper(this);
 
+        // UI 요소 초기화
         editTextTitle = findViewById(R.id.editTextTitle);
         editTextAuthor = findViewById(R.id.editTextAuthor);
         listViewBooks = findViewById(R.id.listViewBooks);
+        imageView = findViewById(R.id.imageView); // 이미지 뷰 연결
         Button buttonSave = findViewById(R.id.buttonSave);
         Button buttonUpdate = findViewById(R.id.buttonUpdate);
         Button buttonDelete = findViewById(R.id.buttonDelete);
+        Button buttonSelectImage = findViewById(R.id.buttonSelectImage); // 이미지 선택 버튼
 
-        // 데이터 삽입
+        // 이미지 선택 버튼 클릭 리스너
+        buttonSelectImage.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                // 갤러리에서 이미지 선택
+                Intent intent = new Intent(Intent.ACTION_PICK, android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
+                startActivityForResult(intent, PICK_IMAGE_REQUEST);
+            }
+        });
+
+        // 데이터 삽입 버튼 클릭 리스너
         buttonSave.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                // 사용자 입력 가져오기
                 String title = editTextTitle.getText().toString().trim();
                 String author = editTextAuthor.getText().toString().trim();
 
+                // 입력 값이 유효한지 확인
                 if (!title.isEmpty() && !author.isEmpty()) {
+                    // 데이터베이스에 데이터 삽입
                     long id = dbHelper.insertBookReview(
                             title,
                             author,
@@ -47,72 +77,20 @@ public class MainActivity extends AppCompatActivity {
                             "장르 예시",
                             "2024-11-18",
                             "리뷰 예시",
-                            "태그 예시"
+                            "태그 예시",
+                            selectedImagePath // 이미지 경로 저장
                     );
 
+                    // 삽입 성공 여부에 따라 메시지 표시
                     if (id != -1) {
                         Toast.makeText(MainActivity.this, "저장 성공", Toast.LENGTH_SHORT).show();
-                        loadBookReviews();
+                        loadBookReviews(); // 목록 갱신
                     } else {
                         Toast.makeText(MainActivity.this, "저장 실패", Toast.LENGTH_SHORT).show();
                     }
                 } else {
+                    // 입력 값이 비어 있는 경우 경고 메시지 표시
                     Toast.makeText(MainActivity.this, "모든 필드를 입력해주세요", Toast.LENGTH_SHORT).show();
-                }
-            }
-        });
-
-        // 데이터 수정
-        buttonUpdate.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (selectedItemId != -1) {
-                    String title = editTextTitle.getText().toString().trim();
-                    String author = editTextAuthor.getText().toString().trim();
-
-                    if (!title.isEmpty() && !author.isEmpty()) {
-                        int rowsAffected = dbHelper.updateBookReview(
-                                selectedItemId,
-                                title,
-                                author,
-                                "출판사 예시 (수정)",
-                                "옮긴이 예시 (수정)",
-                                4,
-                                "장르 예시 (수정)",
-                                "2024-11-18",
-                                "리뷰 수정 예시",
-                                "태그 수정 예시"
-                        );
-
-                        if (rowsAffected > 0) {
-                            Toast.makeText(MainActivity.this, "수정 성공", Toast.LENGTH_SHORT).show();
-                            loadBookReviews();
-                        } else {
-                            Toast.makeText(MainActivity.this, "수정 실패", Toast.LENGTH_SHORT).show();
-                        }
-                    } else {
-                        Toast.makeText(MainActivity.this, "모든 필드를 입력해주세요", Toast.LENGTH_SHORT).show();
-                    }
-                } else {
-                    Toast.makeText(MainActivity.this, "수정할 항목을 선택해주세요", Toast.LENGTH_SHORT).show();
-                }
-            }
-        });
-
-        // 데이터 삭제
-        buttonDelete.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (selectedItemId != -1) {
-                    int rowsDeleted = dbHelper.deleteBookReview(selectedItemId);
-                    if (rowsDeleted > 0) {
-                        Toast.makeText(MainActivity.this, "삭제 성공", Toast.LENGTH_SHORT).show();
-                        loadBookReviews();
-                    } else {
-                        Toast.makeText(MainActivity.this, "삭제 실패", Toast.LENGTH_SHORT).show();
-                    }
-                } else {
-                    Toast.makeText(MainActivity.this, "삭제할 항목을 선택해주세요", Toast.LENGTH_SHORT).show();
                 }
             }
         });
@@ -121,12 +99,23 @@ public class MainActivity extends AppCompatActivity {
         listViewBooks.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                selectedItemId = id; // 선택된 항목의 ID 저장
+                // 선택된 항목의 ID 저장
+                selectedItemId = id;
                 Cursor cursor = dbHelper.getBookReviewById(id);
                 if (cursor != null && cursor.moveToFirst()) {
+                    // 선택된 항목의 데이터 가져오기
                     editTextTitle.setText(cursor.getString(cursor.getColumnIndex("title")));
                     editTextAuthor.setText(cursor.getString(cursor.getColumnIndex("author")));
-                    // 다른 필드도 필요 시 채울 수 있습니다.
+                    selectedImagePath = cursor.getString(cursor.getColumnIndex("image_path"));
+
+                    // 이미지 로드
+                    if (selectedImagePath != null && !selectedImagePath.isEmpty()) {
+                        Bitmap bitmap = BitmapFactory.decodeFile(selectedImagePath);
+                        imageView.setImageBitmap(bitmap);
+                    } else {
+                        imageView.setImageResource(R.drawable.placeholder_image); // 기본 이미지
+                    }
+
                     cursor.close();
                 }
             }
@@ -136,14 +125,44 @@ public class MainActivity extends AppCompatActivity {
         loadBookReviews();
     }
 
+    // 이미지 선택 결과 처리
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+
+        if (requestCode == PICK_IMAGE_REQUEST && resultCode == RESULT_OK && data != null && data.getData() != null) {
+            Uri selectedImageUri = data.getData(); // 선택된 이미지 URI 가져오기
+            selectedImagePath = getPathFromUri(selectedImageUri); // 실제 경로 가져오기
+            if (selectedImagePath != null) {
+                Bitmap bitmap = BitmapFactory.decodeFile(selectedImagePath);
+                imageView.setImageBitmap(bitmap); // 이미지 미리보기 설정
+            }
+        }
+    }
+
+    // URI에서 실제 경로를 가져오는 메서드
+    private String getPathFromUri(Uri uri) {
+        String[] projection = {MediaStore.Images.Media.DATA};
+        Cursor cursor = getContentResolver().query(uri, projection, null, null, null);
+        if (cursor != null) {
+            int column_index = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA);
+            cursor.moveToFirst();
+            String path = cursor.getString(column_index); // 경로 가져오기
+            cursor.close();
+            return path;
+        }
+        return null;
+    }
+
     // 데이터베이스에서 책 감상평을 불러와 ListView에 표시
     private void loadBookReviews() {
         Cursor cursor = dbHelper.getAllBookReviews();
-        String[] from = new String[]{"title", "author"};
-        int[] to = new int[]{android.R.id.text1, android.R.id.text2};
+        String[] from = new String[]{"title", "author"}; // 표시할 컬럼
+        int[] to = new int[]{android.R.id.text1, android.R.id.text2}; // ListView에 표시될 텍스트뷰 ID
         SimpleCursorAdapter adapter = new SimpleCursorAdapter(
                 this, android.R.layout.simple_list_item_2, cursor, from, to, 0
         );
-        listViewBooks.setAdapter(adapter);
+        listViewBooks.setAdapter(adapter); // 어댑터 설정
     }
 }
+
